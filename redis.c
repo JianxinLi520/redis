@@ -73,12 +73,15 @@ typedef struct redisObject {
     struct redisObjectVM vm;
 } robj;
 
+/**
+ * redisDb用于标识一个数据库
+ */
 typedef struct redisDb {
-    dict *dict;                 /* The keyspace for this DB */
-    dict *expires;              /* Timeout of keys with a timeout set */
-    dict *blockingkeys;         /* Keys with clients waiting for data (BLPOP) */
-    dict *io_keys;              /* Keys with clients waiting for VM I/O */
-    int id;
+    dict *dict;                 /* 数据库的键空间 */
+    dict *expires;              /* 设置了超时时间的KEY及其超时时间 */
+    dict *blockingkeys;         /* 客户端等待操作的数据 */
+    dict *io_keys;              /* 客户端等待系统IO的数据*/
+    int id;                     /* 数据库的ID */
 } redisDb;
 
 /* Client MULTI/EXEC state */
@@ -132,18 +135,20 @@ struct saveparam {
 
 /**
  * 服务器全局全局状态结构体
+ *
+ * 用于表示整个Redis服务器的结构体，它包含了各种属性和信息，用于描述服务器的状态、配置和运行时数据。
  */
 struct redisServer {
     int port;
     int fd;
     redisDb *db;
-    dict *sharingpool;          /* Poll used for object sharing */
+    dict *sharingpool;          /* Poll used for object sharing - 弹出对象共享池 */
     unsigned int sharingpoolsize;
-    long long dirty;            /* changes to DB from the last save */
+    long long dirty;            /* changes to DB from the last save - 最后一修改的数据库 */
     list *clients;
     list *slaves, *monitors;
     char neterr[ANET_ERR_LEN];
-    aeEventLoop *el;
+    aeEventLoop *el;            /* 事件处理器 */
     int cronloops;              /* number of times the cron function run */
     list *objfreelist;          /* A list of freed objects to avoid malloc() */
     time_t lastsave;            /* Unix time of last save succeeede */
@@ -322,6 +327,8 @@ static void initServerConfig() {
     R_NegInf = -1.0/R_Zero;
     R_Nan = R_Zero/R_Zero;
 }
+
+/* =================================== Main! ================================ */
 
 int main(int argc, char **argv) {
     // 记录开始时间

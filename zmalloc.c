@@ -10,14 +10,15 @@
 #include "zmalloc.h"
 
 
-
-
 #if defined(__sun)
 #define PREFIX_SIZE sizeof(long long)
 #else
 #define PREFIX_SIZE sizeof(size_t)
 #endif
 
+/**
+ * 记录增加系统已使用的内存量
+ */
 #define increment_used_memory(_n) do { \
     if (zmalloc_thread_safe) { \
         pthread_mutex_lock(&used_memory_mutex);  \
@@ -28,6 +29,9 @@
     } \
 } while(0)
 
+/**
+ * 记录减少系统已使用的内存量
+ */
 #define decrement_used_memory(_n) do { \
     if (zmalloc_thread_safe) { \
         pthread_mutex_lock(&used_memory_mutex);  \
@@ -38,10 +42,17 @@
     } \
 } while(0)
 
+// 已使用的内存量
 static size_t used_memory = 0;
+// 内存是用来线程锁
 static int zmalloc_thread_safe = 0;
 pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/**
+ * 分配内存时产生 OOM 异常
+ *
+ * @param size
+ */
 static void zmalloc_oom(size_t size) {
     fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
             size);
@@ -49,10 +60,19 @@ static void zmalloc_oom(size_t size) {
     abort();
 }
 
+/**
+ * 分配指定大小的内存块
+ *
+ * 类似于标准库的malloc()
+ *
+ * @param size
+ * @return
+ */
 void *zmalloc(size_t size) {
     void *ptr = malloc(size+PREFIX_SIZE);
-
-    if (!ptr) zmalloc_oom(size);
+    if (!ptr) {
+        zmalloc_oom(size);
+    }
 #ifdef HAVE_MALLOC_SIZE
     increment_used_memory(redis_malloc_size(ptr));
     return ptr;
@@ -110,6 +130,12 @@ void zfree(void *ptr) {
 #endif
 }
 
+/**
+ * 复制输入字符串，分配足够的内存来存储复制后的字符串，并返回指向新分配内存的指针。
+ *
+ * @param s
+ * @return
+ */
 char *zstrdup(const char *s) {
     size_t l = strlen(s)+1;
     char *p = zmalloc(l);
