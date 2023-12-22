@@ -1,6 +1,6 @@
-//
-// Created by li on 2023/12/21.
-//
+/**
+ * 多路复用工具类
+ */
 
 #ifndef REDIS_1_3_6_REPRODUCTION_AE_H
 #define REDIS_1_3_6_REPRODUCTION_AE_H
@@ -80,5 +80,22 @@ typedef struct aeEventLoop {
     void *apidata; /* This is used for polling API specific data */
     aeBeforeSleepProc *beforesleep;
 } aeEventLoop;
+
+/* Prototypes */
+aeEventLoop *aeCreateEventLoop(void);
+long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
+                            aeTimeProc *proc, void *clientData,
+                            aeEventFinalizerProc *finalizerProc);
+
+
+/**
+ * 返回当前事件库的名称
+ *
+ * Redis 使用不同的事件库来适应不同的系统平台和性能需求。
+ * @return
+ */
+int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
+                      aeFileProc *proc, void *clientData);
+char *aeGetApiName(void);
 
 #endif //REDIS_1_3_6_REPRODUCTION_AE_H

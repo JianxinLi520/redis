@@ -17,6 +17,11 @@ typedef struct listNode {
     void *value;
 } listNode;
 
+typedef struct listIter {
+    listNode *next;
+    int direction;
+} listIter;
+
 /**
  * 链表
  */
@@ -28,5 +33,25 @@ typedef struct list {
     int (*match)(void *ptr, void *key);
     unsigned int len;
 } list;
+
+/* Functions implemented as macros */
+/* 以宏实现的函数 */
+#define listLength(l) ((l)->len)
+#define listFirst(l) ((l)->head)
+#define listNodeValue(n) ((n)->value)
+
+#define listSetFreeMethod(l,m) ((l)->free = (m))
+
+/* Prototypes */
+list *listCreate(void);
+void listRelease(list *list);
+list *listAddNodeHead(list *list, void *value);
+void listDelNode(list *list, listNode *node);
+listNode *listNext(listIter *iter);
+void listRewind(list *list, listIter *li);
+
+/* Directions for iterators */
+#define AL_START_HEAD 0
+#define AL_START_TAIL 1
 
 #endif //__ADLIST_H

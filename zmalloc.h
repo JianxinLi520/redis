@@ -45,4 +45,10 @@ void zfree(void *ptr);
  */
 char *zstrdup(const char *s);
 
+/**
+ * 获取zalloc()实用的内存总量
+ * @return
+ */
+size_t zmalloc_used_memory(void);
+
 #endif //_ZMALLOC_H

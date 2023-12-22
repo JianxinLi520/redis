@@ -9,4 +9,6 @@
 #define ANET_ERR -1
 #define ANET_ERR_LEN 256
 
+int anetTcpServer(char *err, int port, char *bindaddr);
+
 #endif //ANET_H

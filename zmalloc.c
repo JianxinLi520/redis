@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <stddef.h>
 
 #include "zmalloc.h"
 
@@ -142,4 +143,17 @@ char *zstrdup(const char *s) {
 
     memcpy(p,s,l);
     return p;
+}
+
+/**
+ * 获取zalloc()实用的内存总量
+ * @return
+ */
+size_t zmalloc_used_memory(void) {
+    size_t um;
+
+    if (zmalloc_thread_safe) pthread_mutex_lock(&used_memory_mutex);
+    um = used_memory;
+    if (zmalloc_thread_safe) pthread_mutex_unlock(&used_memory_mutex);
+    return um;
 }

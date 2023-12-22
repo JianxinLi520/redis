@@ -7,6 +7,12 @@
 #ifndef REDIS_1_3_6_REPRODUCTION_DICT_H
 #define REDIS_1_3
 
+#define DICT_OK 0
+#define DICT_ERR 1
+
+/* Unused arguments generate annoying warnings... */
+#define DICT_NOTUSED(V) ((void) V)
+
 /**
  * 字典元素
  *
@@ -41,5 +47,33 @@ typedef struct dict {
     unsigned long used;         /* 已使用的哈希表节点数，用于判断是否对哈希表扩容 */
     void *privdata;
 } dict;
+
+/* This is the initial size of every hash table */
+#define DICT_HT_INITIAL_SIZE     4
+
+/* ------------------------------- 宏 Macros ------------------------------------*/
+
+#define dictFreeEntryVal(ht, entry) \
+    if ((ht)->type->valDestructor) \
+        (ht)->type->valDestructor((ht)->privdata, (entry)->val)
+
+#define dictFreeEntryKey(ht, entry) \
+    if ((ht)->type->keyDestructor) \
+        (ht)->type->keyDestructor((ht)->privdata, (entry)->key)
+
+#define dictHashKey(ht, key) (ht)->type->hashFunction(key)
+
+#define dictGetEntryKey(he) ((he)->key)
+#define dictGetEntryVal(he) ((he)->val)
+#define dictSlots(ht) ((ht)->size)
+#define dictSize(ht) ((ht)->used)
+
+/* API */
+dict *dictCreate(dictType *type, void *privDataPtr);
+int dictExpand(dict *ht, unsigned long size);
+void dictRelease(dict *ht);
+int dictResize(dict *ht);
+dictEntry *dictGetRandomKey(dict *ht);
+unsigned int dictGenHashFunction(const unsigned char *buf, int len);
 
 #endif //REDIS_1_3_6_REPRODUCTION_DICT_H
