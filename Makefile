@@ -12,7 +12,7 @@ else
   CCLINK?= -lm -pthread
 endif
 CCOPT= $(CFLAGS) $(CCLINK) $(ARCH) $(PROF)
-DEBUG?= -g -rdynamic -ggdb
+DEBUG?= -g -rdynamic -ggdb -v
 
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o zmalloc.o zipmap.o
 

@@ -1,6 +1,6 @@
-//
-// Created by li on 2023/12/22.
-//
+/**
+ * Hash Tables Implementation.
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +41,6 @@ static void _dictFree(void *ptr) {
 
 /* -------------------------- private prototypes ---------------------------- */
 
-static int _dictExpandIfNeeded(dict *ht);
 static unsigned long _dictNextPower(unsigned long size);
 static int _dictKeyIndex(dict *ht, const void *key);
 static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
@@ -107,12 +106,6 @@ int _dictClear(dict *ht)
     return DICT_OK; /* never fails */
 }
 
-/* Clear & Release the hash table */
-void dictRelease(dict *ht)
-{
-    _dictClear(ht);
-    _dictFree(ht);
-}
 
 /* Initialize the hash table */
 int _dictInit(dict *ht, dictType *type,
@@ -187,6 +180,127 @@ int dictExpand(dict *ht, unsigned long size)
     return DICT_OK;
 }
 
+/* Add an element to the target hash table */
+int dictAdd(dict *ht, void *key, void *val)
+{
+    int index;
+    dictEntry *entry;
+
+    /* Get the index of the new element, or -1 if
+     * the element already exists. */
+    if ((index = _dictKeyIndex(ht, key)) == -1)
+        return DICT_ERR;
+
+    /* Allocates the memory and stores key */
+    entry = _dictAlloc(sizeof(*entry));
+    entry->next = ht->table[index];
+    ht->table[index] = entry;
+
+    /* Set the hash entry fields. */
+    dictSetHashKey(ht, entry, key);
+    dictSetHashVal(ht, entry, val);
+    ht->used++;
+    return DICT_OK;
+}
+
+/* Search and remove an element */
+static int dictGenericDelete(dict *ht, const void *key, int nofree)
+{
+    unsigned int h;
+    dictEntry *he, *prevHe;
+
+    if (ht->size == 0)
+        return DICT_ERR;
+    h = dictHashKey(ht, key) & ht->sizemask;
+    he = ht->table[h];
+
+    prevHe = NULL;
+    while(he) {
+        if (dictCompareHashKeys(ht, key, he->key)) {
+            /* Unlink the element from the list */
+            if (prevHe)
+                prevHe->next = he->next;
+            else
+                ht->table[h] = he->next;
+            if (!nofree) {
+                dictFreeEntryKey(ht, he);
+                dictFreeEntryVal(ht, he);
+            }
+            _dictFree(he);
+            ht->used--;
+            return DICT_OK;
+        }
+        prevHe = he;
+        he = he->next;
+    }
+    return DICT_ERR; /* not found */
+}
+
+int dictDelete(dict *ht, const void *key) {
+    return dictGenericDelete(ht,key,0);
+}
+
+/* Clear & Release the hash table */
+void dictRelease(dict *ht)
+{
+    _dictClear(ht);
+    _dictFree(ht);
+}
+
+dictEntry *dictFind(dict *ht, const void *key)
+{
+    dictEntry *he;
+    unsigned int h;
+
+    if (ht->size == 0) return NULL;
+    h = dictHashKey(ht, key) & ht->sizemask;
+    he = ht->table[h];
+    while(he) {
+        if (dictCompareHashKeys(ht, key, he->key))
+            return he;
+        he = he->next;
+    }
+    return NULL;
+}
+
+dictIterator *dictGetIterator(dict *ht)
+{
+    dictIterator *iter = _dictAlloc(sizeof(*iter));
+
+    iter->ht = ht;
+    iter->index = -1;
+    iter->entry = NULL;
+    iter->nextEntry = NULL;
+    return iter;
+}
+
+dictEntry *dictNext(dictIterator *iter)
+{
+    while (1) {
+        if (iter->entry == NULL) {
+            iter->index++;
+            if (iter->index >=
+                (signed)iter->ht->size) break;
+            iter->entry = iter->ht->table[iter->index];
+        } else {
+            iter->entry = iter->nextEntry;
+        }
+        if (iter->entry) {
+            /* We need to save the 'next' here, the iterator user
+             * may delete the entry we are returning. */
+            iter->nextEntry = iter->entry->next;
+            return iter->entry;
+        }
+    }
+    return NULL;
+}
+
+void dictReleaseIterator(dictIterator *iter)
+{
+    _dictFree(iter);
+}
+
+
 /* Return a random entry from the hash table. Useful to
  * implement randomized algorithms */
 dictEntry *dictGetRandomKey(dict *ht)
@@ -215,3 +329,59 @@ dictEntry *dictGetRandomKey(dict *ht)
     while(listele--) he = he->next;
     return he;
 }
+
+/* ------------------------- private functions ------------------------------ */
+
+/* Expand the hash table if needed */
+static int _dictExpandIfNeeded(dict *ht)
+{
+    /* If the hash table is empty expand it to the intial size,
+     * if the table is "full" dobule its size. */
+    if (ht->size == 0)
+        return dictExpand(ht, DICT_HT_INITIAL_SIZE);
+    if (ht->used == ht->size)
+        return dictExpand(ht, ht->size*2);
+    return DICT_OK;
+}
+
+/* Our hash table capability is a power of two */
+static unsigned long _dictNextPower(unsigned long size)
+{
+    unsigned long i = DICT_HT_INITIAL_SIZE;
+
+    if (size >= LONG_MAX) return LONG_MAX;
+    while(1) {
+        if (i >= size)
+            return i;
+        i *= 2;
+    }
+}
+
+/* Returns the index of a free slot that can be populated with
+ * an hash entry for the given 'key'.
+ * If the key already exists, -1 is returned. */
+static int _dictKeyIndex(dict *ht, const void *key)
+{
+    unsigned int h;
+    dictEntry *he;
+
+    /* Expand the hashtable if needed */
+    if (_dictExpandIfNeeded(ht) == DICT_ERR)
+        return -1;
+    /* Compute the key hash value */
+    h = dictHashKey(ht, key) & ht->sizemask;
+    /* Search if this slot does not already contain the given key */
+    he = ht->table[h];
+    while(he) {
+        if (dictCompareHashKeys(ht, key, he->key))
+            return -1;
+        he = he->next;
+    }
+    return h;
+}
+
+void dictEmpty(dict *ht) {
+    _dictClear(ht);
+}
+
+/* ----------------------- StringCopy Hash Table Type ------------------------*/

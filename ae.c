@@ -2,6 +2,12 @@
 // Created by li on 2023/12/21.
 //
 
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+
 #include "ae.h"
 #include "zmalloc.h"
 #include "config.h"
@@ -37,6 +43,24 @@ aeEventLoop *aeCreateEventLoop(void) {
     for (i = 0; i < AE_SETSIZE; i++)
         eventLoop->events[i].mask = AE_NONE;
     return eventLoop;
+}
+
+void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask)
+{
+    if (fd >= AE_SETSIZE) return;
+    aeFileEvent *fe = &eventLoop->events[fd];
+
+    if (fe->mask == AE_NONE) return;
+    fe->mask = fe->mask & (~mask);
+    if (fd == eventLoop->maxfd && fe->mask == AE_NONE) {
+        /* Update the max fd */
+        int j;
+
+        for (j = eventLoop->maxfd-1; j >= 0; j--)
+            if (eventLoop->events[j].mask != AE_NONE) break;
+        eventLoop->maxfd = j;
+    }
+    aeApiDelEvent(eventLoop, fd, mask);
 }
 
 static void aeGetTime(long *seconds, long *milliseconds)
@@ -96,6 +120,31 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
     te->next = eventLoop->timeEventHead;
     eventLoop->timeEventHead = te;
     return id;
+}
+
+
+/* Wait for millseconds until the given file descriptor becomes
+ * writable/readable/exception */
+int aeWait(int fd, int mask, long long milliseconds) {
+    struct timeval tv;
+    fd_set rfds, wfds, efds;
+    int retmask = 0, retval;
+
+    tv.tv_sec = milliseconds/1000;
+    tv.tv_usec = (milliseconds%1000)*1000;
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&efds);
+
+    if (mask & AE_READABLE) FD_SET(fd,&rfds);
+    if (mask & AE_WRITABLE) FD_SET(fd,&wfds);
+    if ((retval = select(fd+1, &rfds, &wfds, &efds, &tv)) > 0) {
+        if (FD_ISSET(fd,&rfds)) retmask |= AE_READABLE;
+        if (FD_ISSET(fd,&wfds)) retmask |= AE_WRITABLE;
+        return retmask;
+    } else {
+        return retval;
+    }
 }
 
 char *aeGetApiName(void) {

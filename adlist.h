@@ -38,16 +38,23 @@ typedef struct list {
 /* 以宏实现的函数 */
 #define listLength(l) ((l)->len)
 #define listFirst(l) ((l)->head)
+#define listLast(l) ((l)->tail)
+#define listNextNode(n) ((n)->next)
 #define listNodeValue(n) ((n)->value)
 
+#define listSetDupMethod(l,m) ((l)->dup = (m))
 #define listSetFreeMethod(l,m) ((l)->free = (m))
 
 /* Prototypes */
 list *listCreate(void);
 void listRelease(list *list);
 list *listAddNodeHead(list *list, void *value);
+list *listAddNodeTail(list *list, void *value);
 void listDelNode(list *list, listNode *node);
+listIter *listGetIterator(list *list, int direction);
 listNode *listNext(listIter *iter);
+void listReleaseIterator(listIter *iter);
+listNode *listSearchKey(list *list, void *key);
 void listRewind(list *list, listIter *li);
 
 /* Directions for iterators */

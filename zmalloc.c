@@ -157,3 +157,7 @@ size_t zmalloc_used_memory(void) {
     if (zmalloc_thread_safe) pthread_mutex_unlock(&used_memory_mutex);
     return um;
 }
+
+void zmalloc_enable_thread_safeness(void) {
+    zmalloc_thread_safe = 1;
+}

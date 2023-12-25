@@ -96,6 +96,8 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
  */
 int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
                       aeFileProc *proc, void *clientData);
+void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask);
+int aeWait(int fd, int mask, long long milliseconds);
 char *aeGetApiName(void);
 
 #endif //REDIS_1_3_6_REPRODUCTION_AE_H
