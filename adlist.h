@@ -26,7 +26,9 @@ typedef struct listIter {
  * 链表
  */
 typedef struct list {
+    // 头节点
     listNode *head;
+    // 尾节点
     listNode *tail;
     void *(*dup)(void *ptr);
     void (*free)(void *ptr);
@@ -36,10 +38,15 @@ typedef struct list {
 
 /* Functions implemented as macros */
 /* 以宏实现的函数 */
+// 获取链表的长度
 #define listLength(l) ((l)->len)
+// 获取第一个元素
 #define listFirst(l) ((l)->head)
+// 获取最后一个元素
 #define listLast(l) ((l)->tail)
+// 获取下一个元素
 #define listNextNode(n) ((n)->next)
+// 获取节点的值
 #define listNodeValue(n) ((n)->value)
 
 #define listSetDupMethod(l,m) ((l)->dup = (m))

@@ -70,15 +70,24 @@
    In short this commands are denied on low memory conditions. */
 #define REDIS_CMD_DENYOOM       4
 
-/* 对象类型 */
+/*
+ * 对象类型
+ *
+ */
+// SDS字符串
 #define REDIS_STRING 0
+// 列表
 #define REDIS_LIST 1
+// 集合
 #define REDIS_SET 2
+// 有序集合
 #define REDIS_ZSET 3
+// 哈希表
 #define REDIS_HASH 4
 
 
 /* 对象编码
+ *
  * 某些类型的对象(如字符串和散列值)可以在内部以多种方式表示。
  * 对象的` encoding `字段被设置为该对象的其中一个字段。
  */
@@ -207,15 +216,23 @@ struct redisObjectVM {
     time_t atime;       /* Last access time */
 } vm;
 
-/* The actual Redis Object */
+/*
+ * The actual Redis Object
+ *
+ * 实际的Redis 对象
+ */
 typedef struct redisObject {
+    // 实际数据的指针
     void *ptr;
+    // 对象类型
     unsigned char type;
+    // 编码方法
     unsigned char encoding;
     unsigned char storage;  /* If this object is a key, where is the value?
                              * REDIS_VM_MEMORY, REDIS_VM_SWAPPED, ... */
     unsigned char vtype; /* If this object is a key, and value is swapped out,
                           * this is the type of the swapped out object. */
+    // 引用计数
     int refcount;
     /* VM fields, this are only allocated if VM is active, otherwise the
      * object allocation function will just allocate
@@ -224,15 +241,20 @@ typedef struct redisObject {
     struct redisObjectVM vm;
 } robj;
 
-/**
- * redisDb用于标识一个数据库
+/*
+ * redisDb： 用于标识一个数据库
  */
 typedef struct redisDb {
-    dict *dict;                 /* 数据库的键空间 */
-    dict *expires;              /* 设置了超时时间的KEY及其超时时间 */
-    dict *blockingkeys;         /* 客户端等待操作的数据 */
-    dict *io_keys;              /* 客户端等待系统IO的数据*/
-    int id;                     /* 数据库的ID */
+    // 数据库的键空间
+    dict *dict;
+    // 设置了超时时间的KEY及其超时时间
+    dict *expires;
+    // 客户端等待操作的数据
+    dict *blockingkeys;
+    // 客户端等待系统IO的数据
+    dict *io_keys;
+    // 数据库的ID
+    int id;
 } redisDb;
 
 /* Client MULTI/EXEC state */
@@ -293,15 +315,20 @@ struct redisServer {
     int port;
     int fd;
     redisDb *db;
-    dict *sharingpool;          /* Poll used for object sharing - 弹出对象共享池 */
+    /* Poll used for object sharing */
+    // 用于共享对象的轮训
+    dict *sharingpool;
     unsigned int sharingpoolsize;
     long long dirty;            /* changes to DB from the last save - 最后一修改的数据库 */
     list *clients;
-    list *slaves, *monitors;
+    list *slaves;
+    list *monitors;
     char neterr[ANET_ERR_LEN];
     aeEventLoop *el;            /* 事件处理器 */
     int cronloops;              /* number of times the cron function run */
-    list *objfreelist;          /* A list of freed objects to avoid malloc() */
+    /* A list of freed objects to avoid malloc() */
+    // 避免使用 malloc() 函数进行释放的对象列表
+    list *objfreelist;
     time_t lastsave;            /* Unix time of last save succeeede */
     /* Fields used only for stats */
     time_t stat_starttime;         /* server start time */
@@ -336,7 +363,9 @@ struct redisServer {
     char *masterauth;
     char *masterhost;
     int masterport;
-    redisClient *master;    /* client that is master for this slave */
+    /* client that is master for this slave */
+    // 当前从服务器连接的主服务端
+    redisClient *master;
     int replstate;
     unsigned int maxclients;
     unsigned long long maxmemory;
@@ -348,6 +377,7 @@ struct redisServer {
     int sort_alpha;
     int sort_bypattern;
     /* Virtual memory configuration */
+    // 虚拟内存配置
     int vm_enabled;
     char *vm_swap_file;
     off_t vm_page_size;
@@ -801,22 +831,28 @@ static dictType keylistDictType = {
 };
 
 /*============================ Utility functions ============================ */
+/*============================ 通用函数  ============================ */
 
 
 /**
  * 打印日志方法
  *
- * @param level
- * @param fmt
+ * @param level     级别
+ * @param fmt       日志内容
  * @param ...
  */
 static void redisLog(int level, const char *fmt, ...) {
+    // 定义一个指向参数列表的类型
     va_list ap;
     FILE *fp;
 
+    // 如果未设置日志文件，则使用标准输出打印
     fp = (server.logfile == NULL) ? stdout : fopen(server.logfile,"a");
-    if (!fp) return;
+    if (!fp) {
+        return;
+    }
 
+    // 初始化 va_list 对象，使其指向函数参数列表的起始位置
     va_start(ap, fmt);
     if (level >= server.verbosity) {
         char *c = ".-*#";
@@ -830,9 +866,13 @@ static void redisLog(int level, const char *fmt, ...) {
         fprintf(fp,"\n");
         fflush(fp);
     }
+    // 清理 va_list 对象，释放资源。
     va_end(ap);
 
-    if (server.logfile) fclose(fp);
+    // 如果指定日志文件，则关闭文件
+    if (server.logfile) {
+        fclose(fp);
+    }
 }
 
 
@@ -1128,6 +1168,11 @@ static int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientD
     return 1000;
 }
 
+/*
+ * 创建并初始化一组共享对象，共享对象是一些常用的字符串对象，以便在运行时避免重复创建相同的字符串，提高效率。
+ *
+ * 这些对象通常在整个 Redis 服务器生命周期内都是常驻的。
+ */
 static void createSharedObjects(void) {
     shared.crlf = createObject(REDIS_STRING,sdsnew("\r\n"));
     shared.ok = createObject(REDIS_STRING,sdsnew("+OK\r\n"));
@@ -1252,21 +1297,34 @@ static void initServerConfig() {
 static void initServer() {
     int j;
 
+    // 设置信号处理函数 （信号，处理方式）
+    // SIGHUP：挂起
+    // SIGPIPE：管道破裂（Broken Pipe），通常在进程尝试向已关闭的写入端的管道（或 FIFO）写入数据时触发。
+    // SIG_IGN：忽略信号
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
+
+    // 回溯方法，因注释掉了所有的command处理方法，所以暂时注释
 //    setupSigSegvAction();
 
+    // 设置/dev/null
     server.devnull = fopen("/dev/null","w");
     if (server.devnull == NULL) {
         redisLog(REDIS_WARNING, "Can't open /dev/null: %s", server.neterr);
         exit(1);
     }
+    // 客户端列表
     server.clients = listCreate();
+    // 从节点列表
     server.slaves = listCreate();
     server.monitors = listCreate();
+    // 不可用malloc()释放的对象链表
     server.objfreelist = listCreate();
+    // 创建常用字符串对象
     createSharedObjects();
+    // 创建事件监听器
     server.el = aeCreateEventLoop();
+    // 分配数据库空间
     server.db = zmalloc(sizeof(redisDb)*server.dbnum);
     server.sharingpool = dictCreate(&setDictType,NULL);
     server.fd = anetTcpServer(server.neterr, server.port, server.bindaddr);
@@ -2260,17 +2318,37 @@ static void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
 
 /* ======================= Redis objects implementation ===================== */
+/* ======================= Redis 对象的实现 ===================== */
 
+/*
+ * 创建一个对象
+ *
+ * type：对象类型
+ *       REDIS_STRING   0   SDS字符串
+ *       REDIS_LIST     1   列表
+ *       REDIS_SET      2   集合
+ *       REDIS_ZSET     3   有序集合
+ *       REDIS_HASH     4   哈希表
+ * *ptr: 实际数据的指针
+ */
 static robj *createObject(int type, void *ptr) {
+    // redisObject结构体
     robj *o;
 
-    if (server.vm_enabled) pthread_mutex_lock(&server.obj_freelist_mutex);
+    if (server.vm_enabled) {
+        pthread_mutex_lock(&server.obj_freelist_mutex);
+    }
+    // 判断 server.objfreelist 是否还有元素
     if (listLength(server.objfreelist)) {
+        /* server.objfreelist为非空列表 */
         listNode *head = listFirst(server.objfreelist);
         o = listNodeValue(head);
         listDelNode(server.objfreelist,head);
-        if (server.vm_enabled) pthread_mutex_unlock(&server.obj_freelist_mutex);
+        if (server.vm_enabled) {
+            pthread_mutex_unlock(&server.obj_freelist_mutex);
+        }
     } else {
+        /* server.objfreelist为空列表 */
         if (server.vm_enabled) {
             pthread_mutex_unlock(&server.obj_freelist_mutex);
             o = zmalloc(sizeof(*o));
@@ -2286,7 +2364,15 @@ static robj *createObject(int type, void *ptr) {
         /* Note that this code may run in the context of an I/O thread
          * and accessing to server.unixtime in theory is an error
          * (no locks). But in practice this is safe, and even if we read
-         * garbage Redis will not fail, as it's just a statistical info */
+         * garbage Redis will not fail, as it's just a statistical info
+         *
+         * 请注意，这段代码可能运行访问服务器的I/O线程的上下文中。
+         *
+         * unixtime理论上是错误的(没有锁)。
+         *
+         * 但在实践中，这是安全的，即使我们读取了错误的unixtime，Redis也不会失败，因为它只是一个统计信息
+         *
+         * */
         o->vm.atime = server.unixtime;
         o->storage = REDIS_VM_MEMORY;
     }
@@ -5317,7 +5403,8 @@ int main(int argc, char **argv) {
     // 初始化服务端配置方法
     initServerConfig();
 
-    // 根据启动参数加载文件
+    // 根据启动参数加载文件：redis-server /path/to/redis.conf
+    // 一个命令参数时使用默认配置文件
     if (argc == 2) {
         resetServerSaveParams();
         // 参数带有配置文件路径时，加载配置文件

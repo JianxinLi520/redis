@@ -1,6 +1,8 @@
-//
-// Created by li on 2023/12/21.
-//
+/*
+ * A simple event-driven programming library.
+ *
+ * 一个简单的事件驱动编程库
+ */
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -40,8 +42,9 @@ aeEventLoop *aeCreateEventLoop(void) {
     }
     /* Events with mask == AE_NONE are not set. So let's initialize the
      * vector with it. */
-    for (i = 0; i < AE_SETSIZE; i++)
+    for (i = 0; i < AE_SETSIZE; i++) {
         eventLoop->events[i].mask = AE_NONE;
+    }
     return eventLoop;
 }
 

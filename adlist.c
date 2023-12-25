@@ -1,6 +1,9 @@
-//
-// Created by li on 2023/12/21.
-//
+/*
+ * adlist.c - A generic doubly linked list implementation
+ *
+ *            一个通用的双链表实现
+ *
+ */
 
 #include <stdlib.h>
 #include "adlist.h"
@@ -10,14 +13,20 @@
  * AlFreeList(), but private value of every node need to be freed
  * by the user before to call AlFreeList().
  *
- * On error, NULL is returned. Otherwise the pointer to the new list. */
+ * On error, NULL is returned. Otherwise the pointer to the new list.
+ *
+ * 创建一个新列表。创建的列表可以用AlFreeList()释放，但调用AlFreeList()之前，必须先释放每个节点的私有值。
+ *
+ * 发生错误时，返回NULL。否则是指向新列表的指针。
+ */
 list *listCreate(void)
 {
     struct list *list;
-
+    // 分配内存
     if ((list = zmalloc(sizeof(*list))) == NULL) {
         return NULL;
     }
+    // 设置相关属性
     list->head = list->tail = NULL;
     list->len = 0;
     list->dup = NULL;

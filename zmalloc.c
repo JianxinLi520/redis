@@ -6,9 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <stddef.h>
-
-#include "zmalloc.h"
+#include "config.h"
 
 
 #if defined(__sun)
@@ -17,7 +15,7 @@
 #define PREFIX_SIZE sizeof(size_t)
 #endif
 
-/**
+/*
  * 记录增加系统已使用的内存量
  */
 #define increment_used_memory(_n) do { \
@@ -30,7 +28,7 @@
     } \
 } while(0)
 
-/**
+/*
  * 记录减少系统已使用的内存量
  */
 #define decrement_used_memory(_n) do { \
@@ -49,7 +47,7 @@ static size_t used_memory = 0;
 static int zmalloc_thread_safe = 0;
 pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-/**
+/*
  * 分配内存时产生 OOM 异常
  *
  * @param size
@@ -61,7 +59,7 @@ static void zmalloc_oom(size_t size) {
     abort();
 }
 
-/**
+/*
  * 分配指定大小的内存块
  *
  * 类似于标准库的malloc()
@@ -69,7 +67,8 @@ static void zmalloc_oom(size_t size) {
  * @param size
  * @return
  */
-void *zmalloc(size_t size) {
+void *zmalloc(size_t size)
+{
     void *ptr = malloc(size+PREFIX_SIZE);
     if (!ptr) {
         zmalloc_oom(size);
@@ -131,7 +130,7 @@ void zfree(void *ptr) {
 #endif
 }
 
-/**
+/*
  * 复制输入字符串，分配足够的内存来存储复制后的字符串，并返回指向新分配内存的指针。
  *
  * @param s
@@ -145,7 +144,7 @@ char *zstrdup(const char *s) {
     return p;
 }
 
-/**
+/*
  * 获取zalloc()实用的内存总量
  * @return
  */
