@@ -29,7 +29,6 @@
 #include "sds.h"
 #include "zipmap.h"
 #include "lzf.h"
-#include "config.h"
 
 #define REDIS_VERSION "1.3.6"
 
@@ -1255,7 +1254,7 @@ static void initServer() {
 
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
-    setupSigSegvAction();
+//    setupSigSegvAction();
 
     server.devnull = fopen("/dev/null","w");
     if (server.devnull == NULL) {
@@ -5340,106 +5339,3 @@ int main(int argc, char **argv) {
     initServer();
     redisLog(REDIS_NOTICE,"Server started, Redis version " REDIS_VERSION);
 }
-
-/* ============================= 回溯的支持 ========================= */
-
-#ifdef HAVE_BACKTRACE
-static char *findFuncName(void *pointer, unsigned long *offset);
-
-static void *getMcontextEip(ucontext_t *uc) {
-#if defined(__FreeBSD__)
-    return (void*) uc->uc_mcontext.mc_eip;
-#elif defined(__dietlibc__)
-    return (void*) uc->uc_mcontext.eip;
-#elif defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
-    #if __x86_64__
-    return (void*) uc->uc_mcontext->__ss.__rip;
-  #else
-    return (void*) uc->uc_mcontext->__ss.__eip;
-  #endif
-#elif defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
-#if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
-    return (void*) uc->uc_mcontext->__ss.__rip;
-#else
-    return (void*) uc->uc_mcontext->__ss.__eip;
-#endif
-#elif defined(__i386__) || defined(__X86_64__) || defined(__x86_64__)
-    return (void*) uc->uc_mcontext.gregs[REG_EIP]; /* Linux 32/64 bit */
-#elif defined(__ia64__) /* Linux IA64 */
-    return (void*) uc->uc_mcontext.sc_ip;
-#else
-    return NULL;
-#endif
-}
-
-/**
- * 处理段错误的信号处理函数
- *
- * 当程序访问了无效的内存地址，导致段错误时，操作系统会发送 SIGSEGV 信号，如果程序设置了相应的信号处理函数，那么该函数就会被调用。
- *
- * @param sig
- * @param info
- * @param secret
- */
-static void segvHandler(int sig, siginfo_t *info, void *secret) {
-    void *trace[100];
-    char **messages = NULL;
-    int i, trace_size = 0;
-    unsigned long offset=0;
-    ucontext_t *uc = (ucontext_t*) secret;
-    sds infostring;
-    REDIS_NOTUSED(info);
-
-    redisLog(REDIS_WARNING,
-             "======= Ooops! Redis %s got signal: -%d- =======", REDIS_VERSION, sig);
-    infostring = genRedisInfoString();
-    redisLog(REDIS_WARNING, "%s",infostring);
-    /* It's not safe to sdsfree() the returned string under memory
-     * corruption conditions. Let it leak as we are going to abort */
-
-    trace_size = backtrace(trace, 100);
-    /* overwrite sigaction with caller's address */
-    if (getMcontextEip(uc) != NULL) {
-        trace[1] = getMcontextEip(uc);
-    }
-    messages = backtrace_symbols(trace, trace_size);
-
-    for (i=1; i<trace_size; ++i) {
-        char *fn = findFuncName(trace[i], &offset), *p;
-
-        p = strchr(messages[i],'+');
-        if (!fn || (p && ((unsigned long)strtol(p+1,NULL,10)) < offset)) {
-            redisLog(REDIS_WARNING,"%s", messages[i]);
-        } else {
-            redisLog(REDIS_WARNING,"%d redis-server %p %s + %d", i, trace[i], fn, (unsigned int)offset);
-        }
-    }
-    /* free(messages); Don't call free() with possibly corrupted memory. */
-    _exit(0);
-}
-
-/**
- * 设置在发生段错误时的信号处理函数
- *
- * （Segmentation Fault，通常表示程序访问了无效的内存地址）
- */
-static void setupSigSegvAction(void) {
-    struct sigaction act;
-
-    sigemptyset (&act.sa_mask);
-    /* When the SA_SIGINFO flag is set in sa_flags then sa_sigaction
-     * is used. Otherwise, sa_handler is used */
-    act.sa_flags = SA_NODEFER | SA_ONSTACK | SA_RESETHAND | SA_SIGINFO;
-    act.sa_sigaction = segvHandler;
-    sigaction (SIGSEGV, &act, NULL);
-    sigaction (SIGBUS, &act, NULL);
-    sigaction (SIGFPE, &act, NULL);
-    sigaction (SIGILL, &act, NULL);
-    sigaction (SIGBUS, &act, NULL);
-    return;
-}
-
-#else /* HAVE_BACKTRACE */
-static void setupSigSegvAction(void) {
-}
-#endif /* HAVE_BACKTRACE */
